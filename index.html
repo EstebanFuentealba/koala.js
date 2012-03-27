@@ -3,6 +3,7 @@
         <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
         <script>!window.jQuery && document.write('<script src="http://code.jquery.com/jquery-1.4.2.min.js"><\/script>');</script>
         <script>
+            /* KoalaJS 0.1a */
             (function($){
                 $.koala = {
                     isset: function(val){
@@ -63,27 +64,47 @@
                         });
                     }
                 };
-                $.fn.koala = function(datastore,options) {
+                $.fn.getRecord = function(callback) {
+                     return $(this).each(function(){
+                        callback($(this).data("koalaRecord"));
+                     });
+                };
+                $.fn.loadRecord = function(record) {
                     return $(this).each(function(){
-			
-			
+                        $(this).data("koalaRecord",record);
+                        for (var fieldName in record) {
+                            $('input[name="'+fieldName+'"]',$(this)).val(record[fieldName]);
+                        }
                     });
                 };
             })( jQuery );
+            
+            
+            
+            
+            
+            
+            /*
+             *  Test KoalaJS
+             *
+             */
+            
             $(function() {
                 /*
-                        /koala
-                        /koala/source
-                        /koala/model
+                 * Definición de Modelo , estructura de la información
                  */
-
                 $.koala.define.model('Test',{
                     primary: ['id_usuario'],
                     fields:[
+                        { name: 'id_usuario',	type: 'string' },
                         { name: 'firstname',	type: 'string', defaultValue:'Esteban' },
                         { name: 'lastname',	type: 'string', defaultValue:'Fuentealba' }
                     ]
                 });
+                
+                /*
+                 * definición de la fuente de datos, se asigna un modelo a parsear
+                 */
                 $.koala.define.source('Test',{
                     model: 'Test',
                     autoLoad: true,
@@ -98,16 +119,29 @@
                     }
                 });
 		
-		
+                /*
+                 * Definición de los binds a escuchar
+                 */
                 $.koala.source('Test').on({
                     'load': function(records){
                         //console.log(records);
                     }
                 });
+                /*
+                 * Metodo load del source que carga los datos y parsea el resultado a objetos segun el modelo definido
+                 */
                 $.koala.source('Test',[1]).load({
                     callback: function(records) {
-                        //console.log(records)
-                        $("#signupForm").koala.loadRecord({ source: 'Test' });
+                        /*
+                         * Metodo que carga un record al formulario
+                         */
+                        $("#signupForm").loadRecord(records[0]);
+                        /*
+                         * Obtiene el record asignado
+                         */
+                        $("#signupForm").getRecord(function(record){
+                            console.log(record);
+                        })
                     }
                 });
 		
@@ -123,101 +157,9 @@
                     <label for="firstname">Nombre</label>
                     <input id="firstname" type="text" class="next_lastname_ test" name="firstname" />
                 </p>
-                <p style="display:none">
+                <p>
                     <label for="lastname">Apellido</label>
-                    <input id="lastname" type="text" name="lastname" disabled="disabled" />
-                </p>
-                <p>
-                    <label for="celular">Celular</label>
-                    <input id="celular" type="text" class="novacio celular" name="celular" />
-                </p>
-                <p>
-                    <label for="rangoNumero">Numero entre 0 y 10</label>
-                    <input id="rangoNumero" type="text" class="rangoNumerico_0,10_" alt="debe estar en un rango entre 0 y 10" name="rangoNumero" />
-                </p>
-
-                <p>
-                    <label for="fono">Telefono Fijo</label>
-                    <input id="fono" type="text" class="fono" name="fono" />
-                </p>
-                <p>
-                    <label for="numero">Numero Cero positivo</label>
-                    <input id="numero" type="text" class="novacio ceroPositivo" name="numero" />
-                </p>
-                <p>
-                    <label for="positivoNovacio">Numero Positivo y no vacio</label>
-                    <input id="positivoNovacio" type="text" class="positivo" name="positivoNovacio" />
-                </p>
-                <p>
-                    <label for="numnegativo">Numero Negativo</label>
-                    <input id="numnegativo" type="text" class="negativo" name="numnegativo" />
-                </p>
-                <p>
-                    <label for="username">Usuario</label>
-                    <input id="username" type="text" class="negativo next_campoUrl,password,confirm_password_" name="username"  />
-                </p>
-                <p>
-                    <label for="campoUrl">Url</label>
-                    <input id="campoUrl" type="text" class="url" name="campoUrl" alt="Debes ingresar una url valida" disabled="disabled" />
-                </p>
-                <p>
-                    <label for="password">Contraseña</label>
-                    <input id="password" name="password" class="novacio" type="password"  />
-                </p>
-                <p>
-                    <label for="confirm_password">Confirmar contraseña</label>
-                    <input id="confirm_password" class="novacio same_password_" alt="Las contraseñas deben ser Iguales" name="confirm_password" type="password" />
-                </p>
-                <p>
-                    <label for="rut">Rut</label>
-                    <input id="rut" type="text" class="novacio rut" name="rut" />
-                </p>
-                <p>
-                    <label for="email">Email</label>
-                    <input id="email" type="text" name="email" class="novacio email numero"  />
-                </p>
-                <p>
-                    <textarea id="js" style="width: 100%; height: 10em;"></textarea>
-                </p>
-                <p>
-                    <label for="testHora">Hora</label>
-                    <input id="testHora" type="text" class="novacio hora" name="testHora" />
-                </p>
-                <p>
-                <fieldset id="grupo1" title="Debes Seleccionar solo 2" class="novacio group('==2')">
-                    <legend>Puedes Seleccionar Solo 2</legend>
-                    <input type="checkbox" name="check1">1
-                    <input type="checkbox" name="check2">2
-                    <input type="checkbox" name="check3">3
-                    <input type="checkbox" name="check4">4
-                    <input type="checkbox" name="check5">5
-                </fieldset>
-                </p>
-                <p>
-                <fieldset id="grupo2" title="Debes Seleccionar al menos 3" class="group('>2')">
-                    <legend>Puedes Seleccionar al menos 3</legend>
-                    <input type="checkbox" name="check_21">1
-                    <input type="checkbox" name="check_22">2
-                    <input type="checkbox" name="check_23">3
-                    <input type="checkbox" name="check_24">4
-                    <input type="checkbox" name="check_25">5
-                </fieldset>
-                </p>
-                <p>
-                    <label for="lenguaje">Lenguaje</label>
-                    <select id="lenguaje" name="lenguaje" class="novacio">
-                        <optgroup label="Lenguajes del lado servidor">
-                            <option>PHP</option>
-                            <option>ASP</option>
-                        </optgroup>
-                        <optgroup label="Lenguajes del lado cliente">
-                            <option>JavaScript</option>
-                            <option>VBScript</option>
-                        </optgroup>
-                    </select>
-                </p>
-                <p>
-                    <input class="submit" type="submit" value="Submit"/>
+                    <input id="lastname" type="text" class="test" name="lastname" />
                 </p>
             </fieldset>
         </form>
