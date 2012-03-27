@@ -1,7 +1,12 @@
 <html>
     <head>
-        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
-        <script>!window.jQuery && document.write('<script src="http://code.jquery.com/jquery-1.4.2.min.js"><\/script>');</script>
+        <link rel="stylesheet" href="http://view.jqueryui.com/master/themes/base/jquery.ui.all.css">
+	
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+        <script src="http://view.jqueryui.com/master/ui/jquery.ui.core.js"></script>
+	<script src="http://view.jqueryui.com/master/ui/jquery.ui.widget.js"></script>
+	<script src="http://view.jqueryui.com/master/ui/jquery.ui.position.js"></script>
+	<script src="http://view.jqueryui.com/master/ui/jquery.ui.tooltip.js"></script>
         <script>
             /* KoalaJS 0.1a */
             (function($){
@@ -22,9 +27,9 @@
                     source: function(sourceName){
                         this.sourceName = sourceName;
                         this.load = function(options){
-                            var me 		= this,
-                            srcCfg 	= $.koala.__sourceList[sourceName];
-                            srcCfg.model;
+                            var me 	= this,
+                                srcCfg 	= $.koala.__sourceList[sourceName];
+                                
                             if ($.koala.isset(srcCfg.url)) {
                                 if ($.koala.isset(srcCfg.model)) {
                                     if($.koala.isset(srcCfg.reader)){
@@ -53,31 +58,99 @@
                     },
                     __parseJSON : function(json,root,model){
                         var jsonResult = eval("json."+root),
-                        tmp = {};
-                        return $.map(jsonResult,function(o){
                             tmp = {};
+                        return $.map(jsonResult,function(o){
+                            tmp = { };
+                            tmp.__koala = {
+                                '__class' : model
+                            };
                             $.map($.koala.__modelList[model].fields,function(field){
                                 tmp[field.name] = o[field.name];
                                 return tmp;
                             });
                             return tmp;
                         });
+                    },
+                    __serializeArrayToObject: function(serializeArray) {
+                        var tmp = {};
+                        $.map(serializeArray,function(o){
+                            tmp[o.name] = o.value;
+                        });
+                        return tmp;
+                    },
+                    __getModel: function(modelName) {
+                        return $.koala.__modelList[modelName];
+                    },
+                    __existsPrimary: function(record,values) {
+                        if($.koala.isset(record)){
+                            var model = $.koala.__getModel(record["__koala"]["__class"]); 
+                            return $.koala.isset( values[model["primary"]] );
+                        }
+                        return false;
+                    },
+                    __isChanged : function(record,values,field){
+                        var isChanged = false,
+                            modelName;
+                        if($.koala.isset(field)) {
+                            return (record[field] != values[field]);
+                        } else {
+                            modelName = record["__koala"]["__class"];
+                            $.map($.koala.__getModel(modelName).fields,function(field){
+                                if(record[field.name].toString() != values[field.name].toString()){
+                                    isChanged = true;
+                                }
+                            });
+                            return isChanged;
+                        }
+                        return false;
                     }
+                };
+                $.fn.setSource = function(sourceName,options){
+                    return $(this).each(function() {
+                        var me = this;
+                    });
                 };
                 $.fn.getRecord = function(callback) {
                      return $(this).each(function(){
-                        callback($(this).data("koalaRecord"));
+                         var me = this,
+                            record = $(me).data("koalaRecord");
+                            callback( ($.koala.isset(record) ) ? record : null );
                      });
                 };
                 $.fn.loadRecord = function(record) {
                     return $(this).each(function(){
-                        $(this).data("koalaRecord",record);
+                        var me          = this,
+                            modelName   = record["__koala"]["__class"],
+                            model       = $.koala.__getModel(modelName);
+                        
+                        if($.koala.isset(record["__koala"]) && $.koala.isset(modelName)) {
+                            var __primary = model["primary"];
+                            if($("input[name='"+__primary+"']",$(me)).length == 0){
+                                $(me).append($("<input type='hidden' name='"+__primary+"' />"))
+                            }
+                        }
+                        $(me).bind("submit", function() {
+                            var me              = this,
+                                record          = $(me).data("koalaRecord");
+                                tmpValues       = $.koala.__serializeArrayToObject($(me).serializeArray()) ,
+                                existPrimary    = $.koala.__existsPrimary(record ,tmpValues);
+                            if(existPrimary){
+                                if($.koala.__isChanged(record,tmpValues)){
+                                    console.log("UPDATE");
+                                }
+                            }
+                            
+                            
+                            return false;
+                        }).bind("reset", function() {
+                            $.removeData(me,"koalaRecord");
+                        }).data("koalaRecord",record);
                         for (var fieldName in record) {
                             $('input[name="'+fieldName+'"]',$(this)).val(record[fieldName]);
                         }
                     });
                 };
-            })( jQuery );
+            })(jQuery);
             
             
             
@@ -94,7 +167,7 @@
                  * Definición de Modelo , estructura de la información
                  */
                 $.koala.define.model('Test',{
-                    primary: ['id_usuario'],
+                    primary: 'id_usuario',
                     fields:[
                         { name: 'id_usuario',	type: 'string' },
                         { name: 'firstname',	type: 'string', defaultValue:'Esteban' },
@@ -141,13 +214,41 @@
                          */
                         $("#signupForm").getRecord(function(record){
                             console.log(record);
-                        })
+                        });
                     }
                 });
 		
-		
+		$("#btn-load").click(function(){
+                    $.koala.source('Test',[1]).load({
+                        callback: function(records) {
+                            $("#signupForm").loadRecord(records[0]);
+                        }
+                    });
+                });
+                $("#btn-get").click(function(){
+                    $("#signupForm").getRecord(function(record){
+                        if(record){
+                            $("body").append("Nombre: "+record.firstname+"<br />");
+                        }
+                    });
+                });
+                
+                $("#btn-create").click(function(){
+                    $("#signupForm").getRecord(function(record){
+                        //console.log(record);
+                        //console.log($("#signupForm").serialize());
+                    });
+                })
+                
+                $( ".demo" ).tooltip();
             });
         </script>
+        <style>
+	label {
+		display: inline-block;
+		width: 5em;
+	}
+	</style>
     </head>
     <body>
         <form class="cmxform" id="signupForm" method="POST" action="">
@@ -162,6 +263,15 @@
                     <input id="lastname" type="text" class="test" name="lastname" />
                 </p>
             </fieldset>
+            <input type="reset" value="Reset" />
+            <input id="btn-load" type="button" value="Load" />
+            <input id="btn-get" type="button" value="Get" />
+            <input id="btn-create" type="submit" value="Crear" />
         </form>
+        <div class="demo">
+            <p>
+                <a href="#" title="That's what this widget is">Tooltips</a>
+            </p>
+        </div>
     </body>
 </html>
