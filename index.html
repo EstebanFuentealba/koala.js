@@ -1,424 +1,129 @@
 <html>
     <head>
-        <script src="js/jquery.min.js"></script>
+        <style>
+            input, select {
+                width: 200px;
+            }
+        </style>
+        <script src="/js/jquery.min.js"></script>
+        <script src="/js/jquery.json-2.3.min.js"></script>
+        <script src="/src/core.js"></script>
+        <script src="/src/rest.js"></script>
         <script>
-            /* KoalaJS 0.1a */
-            (function($){
-                $.koala = {};
-                $.koala = function(opts) {
-                    if($.isArray(opts)){
-                        $.map(opts,function(o){
-                            $.koala.__deploy(o);
-                        })
-                    }else{
-                        throw "Necesita un Array"
-                    }
-                };
-                $.koala.require = function(requires,callback) {
-                    var total = requires.length,
-                    index = 0;
-                    $.map(requires,function(require){
-                        $.getScript(require).done(function(script, textStatus) {
-                            index++;
-                            if(total==index) { callback($); }
-                        });
-                    })
-                };
-                $.koala.rest = {
-                    "get": function(url,params,callback){
-                        return $.getJSON(url,params,callback);
-                    },
-                    "post": function(url,params,callback){
-                        return $.ajax({ type: 'POST',url: url, data: params, success: callback, dataType: "json", contentType: "application/json; charset=utf-8" });
-                    },
-                    "put": function(url,params,callback){
-                        return $.ajax({ type: 'PUT', url: url, data: params, success: callback, dataType: "json", contentType: "application/json; charset=utf-8" });
-                    },
-                    "delete": function(options){
-                        return $.ajax({ type: 'DELETE',url: url, data: params, success: callback, dataType: "json", contentType: "application/json; charset=utf-8" });
-                    }
-                };
-                $.koala.isset= function(val){
-                    return (typeof(val) != "undefined");
-                };
-                $.koala.__types= ["form","combobox"];
-                $.koala.__sourceList = {};
-                $.koala.__modelList={};
-                $.koala.define = {
-                    model: function(modelName,options){
-                        $.koala.__modelList[modelName] = options;
-                    },
-                    source: function(sourceName,options){
-                        $.koala.__sourceList[sourceName] = options;
-                    }
-                };
-                $.koala.source= function(sourceName){
-                    this.sourceName = sourceName;
-                    this.load = function(opts){
-                        var me 	= this,
-                        defaults = {
-                            callback: function(){}
-                        },
-                        srcCfg 	= $.koala.__sourceList[sourceName],
-                        options = $.extend(defaults,opts);
-                        if ($.koala.isset(srcCfg.url)) {
-                            if ($.koala.isset(srcCfg.model)) {
-                                if($.koala.isset(srcCfg.reader)){
-                                    $.koala.rest.get(srcCfg.url,{},function(json){
-                                        var results = $.koala.__parseJSON(json,srcCfg.reader.root,srcCfg.model,sourceName);
-                                        options.callback(results)
-                                    });
-                                }
-                            } else {
-                                throw  "No Definido Modelo del source";
-                            }
-                        } else {
-                            throw "No Definida url del Proxy";
-                        }
-                    };
-                    this.on = function(){
-                        return this;
-                    };
-                    return this;
-                };
-                
-                $.koala.__setPrimary = function(ktype, selector,fieldName){
-                    switch(ktype){
-                        case "form" :
-                            if($("input[name='"+fieldName+"']",$(selector)).length == 0){
-                                $(selector).append($("<input type='hidden' name='"+fieldName+"' />"))
-                            }
-                            break;
-                    }
-                },
-                $.koala.__deploy = function(opts){
-                    var defaults = { 
-                        ktype: "form"
-                    },
-                    source,
-                    model,
-                    fn;
-                    var options = $.extend(defaults,opts);
-                    if($.inArray(options.ktype, $.koala.__types) >= 0){
-                        $(opts.selector).data("koala",options);
-                        
-                        source      = $.koala.__getSource(options.source),
-                        model       = $.koala.__getModel(source.model);
-                        if($.koala.isset(model["primary"])){
-                            var __primary = model["primary"];
-                            $.koala.__setPrimary(options.ktype,options.selector, __primary)
-                        }
-                        if($.koala[options.ktype]["allowAutoLoad"] && source.autoLoad){
-                            defaults = {
-                                callback: function(){}
-                            };
-                            optsource = $.extend(defaults,options["callback"]);
-                            fn = $.koala[options.ktype]["processLoad"];
-                            $.koala.source(options.source).load({callback: function(records){
-                                    fn(records,options)
-                            }});
-                        }
-                        $.koala[options.ktype]["bindElement"]($(options.selector));
-                        return true;
-                    } else {
-                        throw "tipo no permitido";
-                    }
-                };
-                $.koala.__parseJSON = function(json,root,model,source){
-                    var jsonResult = eval("json."+root),
-                    tmp = {};
-                    if($.isArray(jsonResult)){
-                        return $.map(jsonResult,function(o){
-                            tmp = { };
-                            tmp.__koala = {
-                                '__modelName' : model,
-                                '__sourceName': source
-                            };
-                            $.map($.koala.__modelList[model].fields,function(field){
-                                tmp[field.name] = o[field.name];
-                                return tmp;
-                            });
-                            return tmp;
-                        });
-                    } else {
-                        throw "no esta bien definido 'root' en reader del source"
-                    }
-                };
-                $.koala.__serializeArrayToObject= function(serializeArray) {
-                    var tmp = {};
-                    $.map(serializeArray,function(o){
-                        tmp[o.name] = o.value;
-                    });
-                    return tmp;
-                };
-                $.koala.__getModel= function(modelName) {
-                    return $.koala.__modelList[modelName];
-                };
-                $.koala.__getSource= function(sourceName) {
-                    return $.koala.__sourceList[sourceName];
-                };
-                $.koala.__existsPrimary= function(record,values) {
-                    if($.koala.isset(record)){
-                        var model = $.koala.__getModel(record["__koala"]["__modelName"]); 
-                        return values[model["primary"]];
-                    }
-                    return false;
-                };
-                $.koala.__isChanged = function(record,values,field){
-                    var isChanged = false,
-                    modelName;
-                    if($.koala.isset(field)) {
-                        return (record[field] != values[field]);
-                    } else {
-                        modelName = record["__koala"]["__modelName"];
-                        $.map($.koala.__getModel(modelName).fields,function(field){
-                            if(record[field.name].toString() != values[field.name].toString()){
-                                isChanged = true;
-                            }
-                        });
-                        return isChanged;
-                    }
-                    return false;
-                };
-                $.koala.form = {
-                    allowAutoLoad: false,
-                    processLoad:function(obj,record){
-                        console.log("load form  ");
-                        console.log(record)
-                        var me          = obj,
-                        modelName   = record["__koala"]["__modelName"],
-                        model       = $.koala.__getModel(modelName);
-                        
-                        if($.koala.isset(record["__koala"]) && $.koala.isset(modelName)) {
-                            var __primary = model["primary"];
-                            if($("input[name='"+__primary+"']",$(me)).length == 0){
-                                $(me).append($("<input type='hidden' name='"+__primary+"' />"))
-                            }
-                        }
-                        $(me).data("koalaRecord",record);
-                        for (var fieldName in record) {
-                            $('input[name="'+fieldName+'"], select[name="'+fieldName+'"]',$(me)).val(record[fieldName]);
-                        }
-                    },
-                    bindElement: function(obj){
-                        
-                        $(obj).bind("submit", function(e) {
-                            var me              = this,
-                            __koala         = $(me).data("koala"),
-                            source          = $.koala.__getSource(__koala["source"]),
-                            record          = $(me).data("koalaRecord"),
-                            tmpValues       = $.koala.__serializeArrayToObject($(me).serializeArray());
-                            /*  UPDATE */
-                            if($.koala.isset(record)){
-                                var existPrimary    = $.koala.__existsPrimary(record ,tmpValues);
-                                if(existPrimary){
-                                    if($.koala.__isChanged(record,tmpValues)){
-                                        $.koala.rest.put(source.url+"/"+existPrimary,$.toJSON(tmpValues),function(json){
-                                            $.extend(record,tmpValues);
-                                            console.log("success");
-                                        }).success(function() {
-                                            console.log("second success"); 
-                                        })
-                                        .error(function() { 
-                                            console.log("error"); 
-                                        })
-                                        .complete(function() { 
-                                            console.log("complete"); 
-                                        });
-                                        console.log("UPDATE");
-                                    }
-                                }
-                            } else {
-                                /* CREATE */
-                                $.koala.rest.post(source.url,$.toJSON(tmpValues),function(json){
-                                    console.log("success");
-                                }).success(function() { 
-                                    console.log("second success"); 
-                                })
-                                .error(function() { 
-                                    console.log("error"); 
-                                })
-                                .complete(function() { 
-                                    console.log("complete"); 
-                                });
-                                console.log("CREATE");
-                            }
-                            return false;
-                        }).bind("reset", function() {
-                            var me = this;
-                            $.removeData(me,"koalaRecord");
-                        })
-                    }
-                };
-                $.koala.combobox = {
-                    allowAutoLoad: true,
-                    processLoad: function(records,options){
-                        console.log("load combobox")
-                        console.log(records)
-                        $.map(records,function(record){
-                            $("<option value='"+record[options.option.value]+"'> "+record[options.option.display]+"</option>").appendTo($(options.selector));
-                        })
-                    },
-                    bindElement: function(opts){
-                        
-                    }
-                };
-                $.fn.setSource = function(sourceName,options){
-                    return $(this).each(function() {
-                        var me = this;
-                    });
-                };
-                $.fn.koala = function(opts) {
-                    return $(this).each(function() {
-                        var me = this;
-                        $.koala.bindElement(me);
-                    });
-                };
-                $.fn.getRecord = function(callback) {
-                    return $(this).each(function(){
-                        var me = this,
-                        record = $(me).data("koalaRecord");
-                        callback( ($.koala.isset(record) ) ? record : null );
-                    });
-                };
-                $.fn.loadRecord = function(record) {
-                    return $(this).each(function(){
-                        $.koala.form.processLoad(this,record);
-                    });
-                };
-            })(jQuery);
-            
-            
-            
-            
-            
-            
-            /*
-             *  Test KoalaJS
-             *
-             */
-            
-            $.koala.require([
-                "js/jquery.json-2.3.min.js"
-            ],function($){
-                $(function() {
-                    /*
-                     * Definición de Modelo , estructura de la información
-                     */
-                    $.koala.define.model('Test',{
-                        primary: 'id_usuario',
-                        fields:[
-                            { name: 'id_usuario',   type: 'string' },
-                            { name: 'comuna',       type: 'int'},
-                            { name: 'firstname',    type: 'string', defaultValue:'Esteban' },
-                            { name: 'lastname',     type: 'string', defaultValue:'Fuentealba' }
-                        ]
-                    });
-                    $.koala.define.model('Comuna',{
-                        primary: 'id_comuna',
-                        fields:[
-                            { name: 'id_comuna',	type: 'int' },
-                            { name: 'nombre_comuna',	type: 'string' }
-                        ]
-                    });
-                    /*
-                     * definición de la fuente de datos, se asigna un modelo a parsear
-                     */
-                    $.koala.define.source('Test',{
-                        model: 'Test',
-                        autoLoad: true,
-                        autoSync: true,
-                        pageSize: 10,
-                        url: '/api.php',
-                        reader: {
-                            root: 'items',
-                            totalProperty: 'totalCount',
-                            successProperty: 'success'
-                        }
-                    });
-                    $.koala.define.source('Comuna',{
-                        model: 'Comuna',
-                        autoLoad: true,
-                        autoSync: true,
-                        pageSize: 10,
-                        url: '/ciudad.php',
-                        reader: {
-                            root: 'items',
-                            totalProperty: 'totalCount',
-                            successProperty: 'success'
-                        }
-                    });
-
-                    /*
-                     * Definición de los binds a escuchar
-                     */
-                    $.koala.source('Test').on({
-                        'load': function(records){
-                            //console.log(records);
-                        }
-                    });
-                    /*
-                     * Metodo load del source que carga los datos y parsea el resultado a objetos segun el modelo definido
-                     */
-                    /*
-                    $.koala.source('Test',[1]).load({
-                        callback: function(records) {
-                            // Metodo que carga un record al formulario
-                            $("#signupForm").loadRecord(records[0]);
-                            //Obtiene el record asignado
-                            $("#signupForm").getRecord(function(record){
-                                console.log(record);
-                            });
-                        }
-                    });
-                     */
-                    
-                    $.koala([
-                        {
-                            ktype: "form",
-                            selector: "#signupForm",
-                            source: "Test"
-                        },
-                        {
-                            ktype: "combobox",
-                            selector: "#comuna",
-                            source: "Comuna",
-                            option: {
-                                display: 'nombre_comuna',
-                                value: 'id_comuna'
-                            },
-                            callback: function(json){
-                                console.log(json)
-                            }
-                        }
-                    ]);
-                    
-                    $("#btn-load").click(function(){
-                        $.koala.source('Test',[1]).load({
-                            callback: function(records) {
-                                $("#signupForm").loadRecord(records[0]);
-                            }
-                        });
-                    });
-                    $("#btn-get").click(function(){
-                        $("#signupForm").getRecord(function(record){
-                            if(record){
-                                $("body").append("Nombre: "+record.firstname+"<br />");
-                            }
-                        });
-                    });
-
-                    $("#btn-create").click(function(){
-                        $("#signupForm").getRecord(function(record){
-                            //console.log(record);
-                            //console.log($("#signupForm").serialize());
-                        });
-                    })
-
+            $(function(){
+                /*
+                 * Ejemplo REST
+                 */
+                $.koala.rest.get("https://api.twitter.com/1/trends/1.json?callback=?",{},function(json){
+                    console.log(json)
                 });
-            
+                
+                
+                /*
+                 * Definición de Modelos de datos (estructura de información)
+                 */
+                $.koala.define.model('Test',{
+                    primary: 'id_usuario',
+                    fields:[
+                        { name: 'id_usuario',   type: 'string' },
+                        { name: 'comuna',       type: 'int'},
+                        { name: 'comuna2',       type: 'int'},
+                        { name: 'firstname',    type: 'string', defaultValue:'Esteban' },
+                        { name: 'lastname',     type: 'string', defaultValue:'Fuentealba' }
+                    ]
+                });
+                $.koala.define.model('Comuna',{
+                    primary: 'id_comuna',
+                    fields:[
+                        { name: 'id_comuna',	type: 'int' },
+                        { name: 'nombre_comuna',type: 'string' }
+                    ]
+                });
+                /*
+                 * Definición de fuentes de datos 
+                 */
+                $.koala.define.source('Test',{
+                    model: 'Test',
+                    autoLoad: true,
+                    autoSync: true,
+                    pageSize: 10,
+                    url: '/api.php',
+                    reader: {
+                        root: 'items',
+                        totalProperty: 'totalCount',
+                        successProperty: 'success'
+                    }
+                });
+                $.koala.define.source('Comuna',{
+                    model: 'Comuna',
+                    autoLoad: false,
+                    autoSync: true,
+                    pageSize: 10,
+                    url: '/ciudad.php',
+                    reader: {
+                        root: 'items',
+                        totalProperty: 'totalCount',
+                        successProperty: 'success'
+                    }
+                });
+                
+                /*
+                 * Inicializa los elementos de KoalaJS
+                 */
+                $.koala.init([
+                    {
+                        ktype: "form",
+                        selector: "#signupForm",
+                        source: "Test"
+                    },
+                    {
+                        ktype: "combobox",
+                        selector: "#comuna",
+                        source: "Comuna",
+                        option: {
+                            display: 'nombre_comuna',
+                            value: 'id_comuna'
+                        }
+                    },
+                    {
+                        ktype: "combobox",
+                        selector: "#comuna2",
+                        source: "Comuna",
+                        option: {
+                            display: 'nombre_comuna',
+                            value: 'id_comuna'
+                        }
+                    }
+                ]);
+                
+                
+                
+                
+                $("#btn-get").click(function(){
+                    $("#signupForm").getRecord(function(record){
+                        if(record){
+                            $("body").append("Objeto JSON: "+$.toJSON(record)+"<br />");
+                        }
+                    });
+                });
+                    
+                    
+                /*
+                 * Ejemplo de cargar un registro a un formulario
+                 */
+                $("#btn-load").click(function(){
+                        
+                    $.koala.source.getInstance('Test').load({
+                        callback: function(records) {
+                            $("#signupForm").loadRecord(records[0]);
+                        }
+                    },{
+                        parameters: {
+                            page: 1
+                        }
+                    });
+                });
             })
-           
         </script>
         <style>
             label {
@@ -443,16 +148,15 @@
                     <label for="comuna">Ciudad</label>
                     <select id="comuna" name="comuna" class="required"></select>
                 </p>
+                <p>
+                    <label for="comuna2">Confirma Ciudad</label>
+                    <select id="comuna2" name="comuna2" class="required"></select>
+                </p>
             </fieldset>
             <input type="reset" value="Reset" />
             <input id="btn-load" type="button" value="Load" />
             <input id="btn-get" type="button" value="Get Nombre" />
             <input type="submit" value="Crear" />
         </form>
-        <div class="demo">
-            <p>
-                <a href="#" title="That's what this widget is">Tooltips</a>
-            </p>
-        </div>
     </body>
 </html>
