@@ -34,7 +34,7 @@
                 utils: {
                     __setPrimary: function(ktype,selector, __primary) {},
                     __haveOptions : function(obj) {
-                        return ($('option',$(obj)).length != 0);
+                        return ($('option',$(obj)).length !== 0);
                     }
                 },
                 processLoad: function(records,options,paramsExtra){
@@ -138,7 +138,6 @@
                         });
                         return isChanged;
                     }
-                    return false;
                 },
                 __existsPrimary: function(record,values) {
                     if($.koala.utils.isSet(record)){
@@ -288,7 +287,7 @@
                 }
                 return new function() {
                     this.getInstance = function(sourceName,opts) {
-                        if (instances[sourceName] == null) {
+                        if (instances[sourceName] === null) {
                             instances[sourceName] = new __constructor(sourceName,opts);
                         }
                         return instances[sourceName];
@@ -420,18 +419,21 @@
             }
         }
     });
-    $.fn.getRecord = function(callback) {
-        return $(this).each(function(){
-            var me = this,
-            record = $(me).data("koalaRecord");
-            callback( ($.koala.utils.isSet(record) ) ? record : null );
-        });
-    };
-    $.fn.loadRecord = function(record) {
-        return $(this).each(function(){
-            $.koala.form.processLoad(this,record);
-        });
-    };
+    $.fn.extend({
+        getRecord: function(callback) {
+            return $(this).each(function(){
+                var me = this,
+                record = $(me).data("koalaRecord");
+                callback( ($.koala.utils.isSet(record) ) ? record : null );
+            });
+        }, 
+        loadRecord: function(record) {
+            return $(this).each(function(){
+                $.koala.form.processLoad(this,record);
+            });
+        }
+    })
+
 })(jQuery);
 
 $(function(){

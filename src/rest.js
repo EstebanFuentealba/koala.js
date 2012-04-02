@@ -5,6 +5,14 @@
         contentType: "application/json; charset=utf-8"
     });
     jQuery.koala.rest = {
+        defauls: {
+          verifyUrl: {
+              "get": "{url}/(?{primary})",
+              "post": "{url}",
+              "put": "{url}/{primary}",
+              "delete": "{url}/{primary}"
+          }  
+        },
         "get": function(url,params,callback){
             return jQuery.getJSON(url,params,callback);
         },
